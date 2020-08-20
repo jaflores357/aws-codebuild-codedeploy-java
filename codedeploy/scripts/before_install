@@ -1,0 +1,17 @@
+#!/opt/chef/embedded/bin/ruby
+require 'fileutils'
+
+remove = Dir.glob('/opt/jaf/apps/__APPNAME__/releases/*').length - 2
+Dir.glob('/opt/jaf/apps/__APPNAME__/releases/*').sort.each do |dir|
+  break if remove <= 0
+  puts "Removing #{dir} old deployed, keeping only 2..."
+  FileUtils.rm_r dir
+  remove -= 1
+end
+
+time_str = Time.now.strftime '%Y%m%d%H%M%S'
+new_release_name = "#{time_str}___APPNAME__"
+new_release_path = "/opt/jaf/apps/__APPNAME__/releases/#{new_release_name}"
+FileUtils.mkdir_p new_release_path
+FileUtils.rm_f '/opt/jaf/apps/__APPNAME__/current'
+FileUtils.ln_s new_release_path, '/opt/jaf/apps/__APPNAME__/current'

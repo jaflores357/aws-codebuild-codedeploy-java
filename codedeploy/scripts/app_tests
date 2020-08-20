@@ -1,0 +1,15 @@
+#!/opt/chef/embedded/bin/ruby
+require 'net/http'
+require 'json'
+sleep_time = 5
+
+(0..60).each do |i|
+  begin
+    response = Net::HTTP.get_response('localhost', '__PATH__', __PORT__)
+    exit 0 if response.code == '200'
+  rescue
+    nil
+  end
+  sleep sleep_time
+end
+exit 1

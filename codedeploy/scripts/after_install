@@ -1,0 +1,20 @@
+#!/opt/chef/embedded/bin/ruby
+require 'fileutils'
+
+app_folder = "/opt/jaf/apps/__APPNAME__"
+artifact = "/tmp/__ARTIFACT__-all.tar.gz"
+version = "__VERSION__"
+
+tar = system "/bin/tar -zxvf #{artifact} --strip 1 -C #{app_folder}/current"
+ver = system "echo #{version} > #{app_folder}/current/version"
+FileUtils.rm_rf "#{artifact}"
+
+symliks = {
+  "logs": "shared/logs",
+  "conf/server.properties": "shared/conf/server.properties"
+}
+
+symliks.each do |dest, orig|
+  FileUtils.rm_rf "#{app_folder}/current/#{dest}"
+  FileUtils.ln_s "#{app_folder}/#{orig}", "#{app_folder}/current/#{dest}"
+end

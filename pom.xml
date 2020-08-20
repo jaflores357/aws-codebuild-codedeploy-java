@@ -1,0 +1,52 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>1.0.0</modelVersion>
+
+
+
+    <name>App01</name>
+    <artifactId>app01</artifactId>
+	<version>__VERSION__</version>
+	
+	<properties>
+		<java.maxMemorySize>1536</java.maxMemorySize>
+		<serviceplatform-app.version>1.0.0</serviceplatform-app.version>
+	</properties>
+	
+
+  <url>http://maven.apache.org</url>
+  <build>
+    <extensions>
+        <extension>
+            <groupId>com.gkatzioura.maven.cloud</groupId>
+            <artifactId>s3-storage-wagon</artifactId>
+            <version>1.0</version>
+        </extension>
+    </extensions>
+  </build>
+  <distributionManagement>
+    <snapshotRepository>
+        <id>jaf-artifactory-repo-snapshot</id>
+	<url>s3://jaf-artifactory/repo/</url>
+    </snapshotRepository>
+    <repository>
+        <id>jaf-artifactory-repo-release</id>
+	<url>s3://jaf-artifactory/repo/</url>
+    </repository>
+  </distributionManagement>
+  <repositories>
+    <repository>
+      <id>jaf-artifactory-repo-snapshot</id>
+      <url>s3://jaf-artifactory/repo</url>
+    </repository>
+    <repository>
+      <id>jaf-artifactory-repo-release</id>
+      <url>s3://jaf-artifactory/repo</url>
+    </repository>
+  </repositories>
+
+	<dependencies>
+		...
+	</dependencies>
+
+</project>

@@ -1,0 +1,54 @@
+version: 0.2
+
+env:
+  variables:
+    APP_NAME: "app01"
+    APP_URL: "/checkstatus/application/status"
+    APP_PORT: "9998"
+    MAJOR_VERSION: "5.0"
+    BUILD_IMAGE: "maven:3.6.3-jdk-8"
+  parameter-store:
+    MCP_GIT_USER: "jaf-git-user"
+    MCP_GIT_PASS: "jaf-git-pass"
+    MCP_ARTIFACTORY_USER: "jaf-artifactory-user"
+    MCP_ARTIFACTORY_PASS: "jaf-artifactory-pass" 
+    MCP_CODEBUILD_SSH_KEY: "jaf-codebuild-ssh-key"   
+phases:
+  install:
+    commands:
+      - mkdir -p ~/.ssh
+      - echo "$MCP_CODEBUILD_SSH_KEY" > ~/.ssh/id_rsa
+      - chmod 600 ~/.ssh/id_rsa
+      - eval "$(ssh-agent -s)"
+      - ssh-add ~/.ssh/id_rsa
+      - ssh-keygen -F bitbucket.com || ssh-keyscan bitbucket.com >>~/.ssh/known_hosts
+      - git submodule update --init
+      - nohup /usr/local/bin/dockerd --host=unix:///var/run/docker.sock --host=tcp://127.0.0.1:2375 --storage-driver=overlay2&
+      - timeout 15 sh -c "until docker info; do echo .; sleep 1; done"
+  pre_build:
+    commands:
+      - sed -i "s|__BUILD_IMAGE__|${BUILD_IMAGE}|" codebuild.dockerfile
+      - sed -i "s|__VERSION__|${MAJOR_VERSION}.${CODEBUILD_BUILD_NUMBER}|" pom.xml
+      - sed -i "s|__MCP_ARTIFACTORY_USER__|${MCP_ARTIFACTORY_USER}|" settings.xml
+      - sed -i "s|__MCP_ARTIFACTORY_PASS__|${MCP_ARTIFACTORY_PASS}|" settings.xml
+      - grep -rl __APPNAME__ codedeploy/* | xargs sed -i "s|__APPNAME__|${APP_NAME}|g"
+      - grep -rl __ARTIFACT__ codedeploy/* | xargs sed -i "s|__ARTIFACT__|${APP_NAME}-${MAJOR_VERSION}.${CODEBUILD_BUILD_NUMBER}|g"
+      - grep -rl __PORT__ codedeploy/* | xargs sed -i "s|__PORT__|${APP_PORT}|g"
+      - grep -rl __PATH__ codedeploy/* | xargs sed -i "s|__PATH__|${APP_URL}|g"
+      - grep -rl __VERSION__ codedeploy/* | xargs sed -i "s|__VERSION__|${MAJOR_VERSION}.${CODEBUILD_BUILD_NUMBER}|g"      
+      - docker build -f codebuild.dockerfile -t maven .      
+  build:
+    commands:
+      - docker run --rm -v "$(pwd)/target":/usr/src/app/target  maven mvn install -DAWS_DEFAULT_REGION=sa-east-1 -Dmaven.legacyLocalRepo=true
+  post_build:
+    commands:
+      - tar -czvf ${APP_NAME}-${MAJOR_VERSION}.$CODEBUILD_BUILD_NUMBER.tgz target/*.tar.gz  -C codedeploy/ ./
+      - aws s3 cp ${APP_NAME}-${MAJOR_VERSION}.$CODEBUILD_BUILD_NUMBER.tgz s3://spo-jaf-deploy/${APP_NAME}/${APP_NAME}-${MAJOR_VERSION}.$CODEBUILD_BUILD_NUMBER.tgz
+      - echo "machine bitbucket.org" > ~/.netrc
+      - echo "login $MCP_GIT_USER" >> ~/.netrc 
+      - echo "password $MCP_GIT_PASS" >> ~/.netrc 
+      - git config --global user.email "aws-codebuild@jaf.com"
+      - git config --global user.name "JAF AWS Codebuild"
+      - git tag -a "${MAJOR_VERSION}.$CODEBUILD_BUILD_NUMBER" -m 'AWS Codebuild CI'
+      - git push origin "${MAJOR_VERSION}.$CODEBUILD_BUILD_NUMBER"
+
